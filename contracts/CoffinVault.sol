@@ -20,15 +20,11 @@ import "./interfaces/ICoffinVault.sol";
 import "hardhat/console.sol";
 
 contract CoffinVault is Ownable, ICoffinVault {
-    using Counters for Counters.Counter;
-
-    Counters.Counter private _positionIDCounter;
-
     // AAVE Pool Proxy address
     ICoffinAddressRegistry public addressRegistry;
     uint24 public constant poolFee = 3000;
 
-    mapping(uint256 => Position) positions;
+    Position[] public positions;
 
     constructor(address _addressRegistry) {
         addressRegistry = ICoffinAddressRegistry(_addressRegistry);
@@ -38,21 +34,24 @@ contract CoffinVault is Ownable, ICoffinVault {
 
     // user needs to approve spending token before calling this function
     function createLeveragedPosition(Position memory _position) external {
-        // assume only USDC
+        // assume only USDC for hack
         require(
             _position.token != address(0),
-            "CoffinVault:createPosition:: Invalid token address"
+            "CoffinVault:createLeveragedPosition:: Invalid token address"
         );
 
         require(
             _position.leverage >= 100,
-            "CoffinVault:createPosition:: Leverage cannot be less than x1"
+            "CoffinVault:createLeveragedPosition:: Leverage cannot be less than x1"
         );
 
         // get reserve data for collateral, in our case weth
         address WETH = addressRegistry.getWETH();
         uint16 ltv = getLTVForAsset(WETH);
-        require(ltv >= 100, "CoffinVault:createPosition:: Reserve LTV too low");
+        require(
+            ltv >= 100,
+            "CoffinVault:createLeveragedPosition:: Reserve LTV too low"
+        );
 
         // example math for frontend calculation of multiplier
         // ltv 7500 => 75% from aave
@@ -61,7 +60,7 @@ contract CoffinVault is Ownable, ICoffinVault {
         // check if leverage provided is possible
         require(
             _position.leverage <= ltv,
-            "CoffinVault:createPosition:: Leverage above LTV"
+            "CoffinVault:createLeveragedPosition:: Leverage above LTV"
         );
 
         address vault = address(this);
@@ -109,6 +108,9 @@ contract CoffinVault is Ownable, ICoffinVault {
 
         uint256 borrowedGHOAmount = IERC20(GHO).balanceOf(vault);
 
+        _position.active = true;
+        positions.push(_position);
+
         emit CreatedLeveragedPosition(vault, borrowedGHOAmount);
     }
 
@@ -118,23 +120,26 @@ contract CoffinVault is Ownable, ICoffinVault {
         // doesnt check position.amount. just uses msg.value instead
         require(
             _position.token == address(0),
-            "CoffinVault:createPosition:: Token address must be 0x0"
+            "CoffinVault:createLeveragedPositionETH:: Token address must be 0x0"
         );
 
         require(
             _position.leverage >= 100,
-            "CoffinVault:createPosition:: Leverage cannot be less than x1"
+            "CoffinVault:createLeveragedPositionETH:: Leverage cannot be less than x1"
         );
 
         // get reserve data for collateral, in our case weth
         address wethAddress = addressRegistry.getWETH();
         uint16 ltv = getLTVForAsset(wethAddress);
-        require(ltv >= 100, "CoffinVault:createPosition:: Reserve LTV too low");
+        require(
+            ltv >= 100,
+            "CoffinVault:createLeveragedPositionETH:: Reserve LTV too low"
+        );
 
         // check if leverage provided is possible
         require(
             _position.leverage <= ltv,
-            "CoffinVault:createPosition:: Leverage above LTV"
+            "CoffinVault:createLeveragedPositionETH:: Leverage above LTV"
         );
 
         address vault = address(this);
@@ -160,15 +165,15 @@ contract CoffinVault is Ownable, ICoffinVault {
 
         uint256 borrowedGHOAmount = IERC20(GHO).balanceOf(vault);
 
+        _position.active = true;
+        positions.push(_position);
         emit CreatedLeveragedPosition(vault, borrowedGHOAmount);
     }
 
     function withdrawPosition() external {}
 
-    function getPosition(
-        uint256 _positionID
-    ) external view returns (Position memory) {
-        return positions[_positionID];
+    function getUserPositions() external view returns (Position[] memory) {
+        return positions;
     }
 
     function getLTVForAsset(address _asset) internal view returns (uint16) {

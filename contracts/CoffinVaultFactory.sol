@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "hardhat/console.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 import {ICoffinVaultFactory} from "./interfaces/ICoffinVaultFactory.sol";
@@ -9,19 +8,21 @@ import {CoffinVault} from "./CoffinVault.sol";
 
 contract CoffinVaultFactory is ICoffinVaultFactory, Ownable {
     bool public deprecated;
+    address public addressRegistry;
 
-    // address to strategy mapping
     mapping(address => address[]) public userVaults;
 
-    constructor() {
+    constructor(address _addressRegistry) {
         deprecated = false;
+        addressRegistry = _addressRegistry;
     }
 
-    // function createNewVault() external returns (address) {
-    //     // address newVaultAddress = address(new CoffinVault());
-    //     userVaults[msg.sender].push(newVaultAddress);
-    //     return newVaultAddress;
-    // }
+    function createNewVault() external returns (address) {
+        address newVaultAddress = address(new CoffinVault(addressRegistry));
+        userVaults[msg.sender].push(newVaultAddress);
+        emit VaultCreated(msg.sender, newVaultAddress);
+        return newVaultAddress;
+    }
 
     function getUserVaults(
         address _user
@@ -29,5 +30,8 @@ contract CoffinVaultFactory is ICoffinVaultFactory, Ownable {
         return userVaults[_user];
     }
 
-    event VaultCreated(address indexed _newVault);
+    function setAddressRegistry(address newAddress) external onlyOwner {
+        addressRegistry = newAddress;
+        emit AddressRegistryChanged(addressRegistry);
+    }
 }
