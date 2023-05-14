@@ -10,6 +10,7 @@ contract CoffinAddressRegistry is Ownable, ICoffinAddressRegistry {
     bytes32 private constant WETH = "WETH";
     bytes32 private constant GHO = "GHO";
     bytes32 private constant USDC = "USDC"; // aave faucet USDC
+    bytes32 private constant NFPositionManager = "NFPositionManager"; // aave faucet USDC
 
     mapping(bytes32 => address) public addresses;
 
@@ -37,6 +38,10 @@ contract CoffinAddressRegistry is Ownable, ICoffinAddressRegistry {
         _setAddress(USDC, contractAddress);
     }
 
+    function setNFPositionManager(address contractAddress) external onlyOwner {
+        _setAddress(NFPositionManager, contractAddress);
+    }
+
     function getUniswap() external view returns (address) {
         return getAddress(UNISWAPV3ROUTER);
     }
@@ -55,6 +60,10 @@ contract CoffinAddressRegistry is Ownable, ICoffinAddressRegistry {
 
     function getUSDC() external view returns (address) {
         return getAddress(USDC);
+    }
+
+    function getNFPositionManager() external view returns (address) {
+        return getAddress(NFPositionManager);
     }
 
     function _setAddress(
