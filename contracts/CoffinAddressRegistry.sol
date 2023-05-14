@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "./interfaces/ICoffinAddressRegistry.sol";
 
-contract CoffinAddressRegistry is Ownable, ICoffinAddressRegistry {
+// import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract CoffinAddressRegistry is ICoffinAddressRegistry {
     bytes32 private constant UNISWAPV3ROUTER = "UNISWAPV3R";
     bytes32 private constant AAVEV3POOL = "AAVEV3POOL";
     bytes32 private constant WETH = "WETH";
@@ -18,27 +19,27 @@ contract CoffinAddressRegistry is Ownable, ICoffinAddressRegistry {
         return addresses[_identifier];
     }
 
-    function setUniswap(address contractAddress) external onlyOwner {
+    function setUniswap(address contractAddress) external {
         _setAddress(UNISWAPV3ROUTER, contractAddress);
     }
 
-    function setWETH(address contractAddress) external onlyOwner {
+    function setWETH(address contractAddress) external {
         _setAddress(WETH, contractAddress);
     }
 
-    function setAave(address contractAddress) external onlyOwner {
+    function setAave(address contractAddress) external {
         _setAddress(AAVEV3POOL, contractAddress);
     }
 
-    function setGHO(address contractAddress) external onlyOwner {
+    function setGHO(address contractAddress) external {
         _setAddress(GHO, contractAddress);
     }
 
-    function setUSDC(address contractAddress) external onlyOwner {
+    function setUSDC(address contractAddress) external {
         _setAddress(USDC, contractAddress);
     }
 
-    function setNFPositionManager(address contractAddress) external onlyOwner {
+    function setNFPositionManager(address contractAddress) external {
         _setAddress(NFPositionManager, contractAddress);
     }
 

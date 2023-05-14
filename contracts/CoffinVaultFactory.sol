@@ -1,12 +1,10 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identi: UNLICENSED
 pragma solidity ^0.8.9;
-
-import "@openzeppelin/contracts/access/Ownable.sol";
 
 import {ICoffinVaultFactory} from "./interfaces/ICoffinVaultFactory.sol";
 import {CoffinVault} from "./CoffinVault.sol";
 
-contract CoffinVaultFactory is ICoffinVaultFactory, Ownable {
+contract CoffinVaultFactory is ICoffinVaultFactory {
     bool public deprecated;
     address public addressRegistry;
 
@@ -30,7 +28,7 @@ contract CoffinVaultFactory is ICoffinVaultFactory, Ownable {
         return userVaults[_user];
     }
 
-    function setAddressRegistry(address newAddress) external onlyOwner {
+    function setAddressRegistry(address newAddress) external {
         addressRegistry = newAddress;
         emit AddressRegistryChanged(addressRegistry);
     }

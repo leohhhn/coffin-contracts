@@ -1,6 +1,12 @@
 import { ethers } from 'hardhat';
-import { AAVEV3GHOPOOL, GHO, USDC, SWAPROUTER, WETH } from './helpers';
-import { CoffinVault } from '../typechain-types';
+import {
+  AAVEV3GHOPOOL,
+  GHO,
+  USDC,
+  SWAPROUTER,
+  WETH,
+  NFPositionManager,
+} from './helpers';
 import { log } from 'console';
 
 async function main() {
@@ -9,6 +15,7 @@ async function main() {
   const AddressRegistry = await ethers.getContractFactory(
     'CoffinAddressRegistry'
   );
+
   const registry = await AddressRegistry.deploy();
   await registry.deployed();
 
@@ -16,24 +23,26 @@ async function main() {
   log(`Deployed registry to: ${registry.address}`);
 
   // all addresses for goerli
-  registry.setAave(AAVEV3GHOPOOL);
-  registry.setGHO(GHO);
-  registry.setUSDC(USDC);
-  registry.setUniswap(SWAPROUTER);
-  registry.setWETH(WETH);
+  await registry.setAave(AAVEV3GHOPOOL);
+  await registry.setGHO(GHO);
+  await registry.setUSDC(USDC);
+  await registry.setUniswap(SWAPROUTER);
+  await registry.setWETH(WETH);
+  await registry.setNFPositionManager(NFPositionManager);
 
   const VaultFactory = await ethers.getContractFactory('CoffinVaultFactory');
-  const Vault = await ethers.getContractFactory('CoffinVault');
+  // const Vault = await ethers.getContractFactory('CoffinVault');
 
   const vf = await VaultFactory.deploy(registry.address);
   await vf.deployed();
+
   log(`Deployed factory to: ${vf.address}`);
 
-  const vaultAddress = await vf.callStatic.createNewVault();
-  await vf.createNewVault();
+  // const vaultAddress = await vf.callStatic.createNewVault();
+  // await vf.createNewVault();
 
-  const vault: CoffinVault = await Vault.attach(vaultAddress);
-  log(`Deployed new vault to: ${vaultAddress}`);
+  // const vault: CoffinVault = await Vault.attach(vaultAddress);
+  // log(`Deployed new vault to: ${vaultAddress}`);
 
   // get USDC abi
   // make usdc token
@@ -41,18 +50,18 @@ async function main() {
   // approve vault for usdc
   // createLeveragedPosition
 
-  const position = {
-    token: ethers.constants.AddressZero,
-    leverage: 7500,
-    active: false,
-    amount: ethers.utils.parseEther('0'),
-  };
+  // const position = {
+  //   token: ethers.constants.AddressZero,
+  //   leverage: 8000,
+  //   active: false,
+  //   amount: ethers.utils.parseEther('0'),
+  // };
 
-  await vault.createLeveragedPositionETH(position, {
-    value: ethers.utils.parseEther('0.00001'),
-  });
+  // await vault.createLeveragedPositionETH(position, {
+  //   value: ethers.utils.parseEther('0.05'), // should yield
+  // });
 
-  log(await vault.getUserPositions());
+  // await vault.provideLiquidity();
 }
 
 // We recommend this pattern to be able to use async/await everywhere

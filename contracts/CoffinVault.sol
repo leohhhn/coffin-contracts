@@ -3,30 +3,22 @@ pragma solidity ^0.8.9;
 
 import {IPool} from "@aave/core-v3/contracts/interfaces/IPool.sol";
 import {DataTypes} from "@aave/core-v3/contracts/protocol/libraries/types/DataTypes.sol";
-import "@aave/core-v3/contracts/misc/interfaces/IWETH.sol";
-
-import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
-import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
-
-import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
-import "@uniswap/v3-core/contracts/libraries/TickMath.sol";
-import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
-import "@uniswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol";
-import "@uniswap/v3-periphery/contracts/base/LiquidityManagement.sol";
-
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/Counters.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import "./interfaces/ICoffinAddressRegistry.sol";
 import "./interfaces/ICoffinVault.sol";
+import "./dependencies/Interfaces.sol";
 import "hardhat/console.sol";
 
-contract CoffinVault is Ownable, ICoffinVault, IERC721Receiver {
-    using Counters for Counters.Counter;
+interface IERC721Receiver {
+    function onERC721Received(
+        address operator,
+        address from,
+        uint tokenId,
+        bytes calldata data
+    ) external returns (bytes4);
+}
 
-    Counters.Counter private _lpNFTIDCounter;
-
+contract CoffinVault is ICoffinVault, IERC721Receiver {
     // AAVE Pool Proxy address
     ICoffinAddressRegistry public addressRegistry;
     uint24 public constant poolFee = 3000;
@@ -37,13 +29,11 @@ contract CoffinVault is Ownable, ICoffinVault, IERC721Receiver {
     constructor(address _addressRegistry) {
         addressRegistry = ICoffinAddressRegistry(_addressRegistry);
         // give user ownership of vault
-        transferOwnership(tx.origin);
+        // transferOwnership(tx.origin);
     }
 
     // user needs to approve spending token before calling this function
-    function createLeveragedPosition(
-        Position memory _position
-    ) external onlyOwner {
+    function createLeveragedPosition(Position memory _position) external {
         // assume only USDC for hack
         require(
             _position.token != address(0),
@@ -77,14 +67,9 @@ contract CoffinVault is Ownable, ICoffinVault, IERC721Receiver {
         address USDC = addressRegistry.getUSDC();
 
         ISwapRouter swapRouter = ISwapRouter(addressRegistry.getUniswap());
-        TransferHelper.safeTransferFrom(
-            USDC,
-            msg.sender,
-            vault,
-            _position.amount
-        );
 
-        TransferHelper.safeApprove(USDC, address(swapRouter), _position.amount);
+        IERC20(USDC).transferFrom(msg.sender, vault, _position.amount);
+        IERC20(USDC).approve(address(swapRouter), _position.amount);
 
         ISwapRouter.ExactInputSingleParams memory params = ISwapRouter
             .ExactInputSingleParams({
@@ -102,7 +87,7 @@ contract CoffinVault is Ownable, ICoffinVault, IERC721Receiver {
 
         IPool aavePool = IPool(addressRegistry.getAave());
         // supply weth to aave
-        aavePool.supply(WETH, wethAmount, msg.sender, 0);
+        aavePool.supply(WETH, wethAmount, address(this), 0);
 
         (uint256 totalCollateralETH, , , , , ) = aavePool.getUserAccountData(
             vault // todo check this
@@ -110,11 +95,12 @@ contract CoffinVault is Ownable, ICoffinVault, IERC721Receiver {
 
         // Calculate borrow amount
         uint256 maxBorrowAmountInWei = (totalCollateralETH *
-            _position.leverage) / 10000;
+            _position.leverage) / 1000;
 
         address GHO = addressRegistry.getGHO();
 
-        aavePool.borrow(GHO, maxBorrowAmountInWei, 1, 0, vault);
+        // fix mafs
+        aavePool.borrow(GHO, maxBorrowAmountInWei * 10 ** 9, 2, 0, vault);
 
         uint256 borrowedGHOAmount = IERC20(GHO).balanceOf(vault);
 
@@ -126,7 +112,7 @@ contract CoffinVault is Ownable, ICoffinVault, IERC721Receiver {
 
     function createLeveragedPositionETH(
         Position memory _position
-    ) external payable onlyOwner {
+    ) external payable {
         // doesnt check position.amount. just uses msg.value instead
         require(
             _position.token == address(0),
@@ -141,6 +127,7 @@ contract CoffinVault is Ownable, ICoffinVault, IERC721Receiver {
         // get reserve data for collateral, in our case weth
         address wethAddress = addressRegistry.getWETH();
         uint16 ltv = getLTVForAsset(wethAddress);
+
         require(
             ltv >= 100,
             "CoffinVault:createLeveragedPositionETH:: Reserve LTV too low"
@@ -158,8 +145,10 @@ contract CoffinVault is Ownable, ICoffinVault, IERC721Receiver {
 
         IPool aavePool = IPool(addressRegistry.getAave());
 
+        IWETH(wethAddress).approve(addressRegistry.getAave(), msg.value);
+
         // supply weth to aave
-        aavePool.supply(wethAddress, msg.value, msg.sender, 0);
+        aavePool.supply(wethAddress, msg.value, vault, 0);
 
         (uint256 totalCollateralETH, , , , , ) = aavePool.getUserAccountData(
             vault // todo check this
@@ -167,11 +156,12 @@ contract CoffinVault is Ownable, ICoffinVault, IERC721Receiver {
 
         // Calculate borrow amount
         uint256 maxBorrowAmountInWei = (totalCollateralETH *
-            _position.leverage) / 10000;
+            _position.leverage) / 1000;
 
         address GHO = addressRegistry.getGHO();
 
-        aavePool.borrow(GHO, maxBorrowAmountInWei, 1, 0, vault);
+        // fix mafs
+        aavePool.borrow(GHO, (maxBorrowAmountInWei * 10 ** 9), 2, 0, vault);
 
         uint256 borrowedGHOAmount = IERC20(GHO).balanceOf(vault);
 
@@ -185,18 +175,12 @@ contract CoffinVault is Ownable, ICoffinVault, IERC721Receiver {
     // deposits 50/50 GHO/WETH into LP pool
     // assumed address(this) already has x amount of GHO
     function provideLiquidity(
-        uint256 minTick,
-        uint256 maxTick
-    )
-        external
-        onlyOwner
-        returns (
-            uint256 tokenId,
-            uint128 liquidity,
-            uint256 amount0,
-            uint256 amount1
-        )
-    {
+        int24 minTick,
+        int24 maxTick
+    ) external returns (uint128 liquidity, uint256 amount0, uint256 amount1) {
+        minTick = type(int24).min;
+        maxTick = type(int24).max;
+
         address GHO = addressRegistry.getGHO();
         address WETH = addressRegistry.getWETH();
 
@@ -204,31 +188,36 @@ contract CoffinVault is Ownable, ICoffinVault, IERC721Receiver {
             IERC20(GHO).balanceOf(address(this)) > 0,
             "CoffinVault:provideLiquidity:: Not enough GHO in valut."
         );
+
         uint256 lpGHOAmount = IERC20(GHO).balanceOf(address(this)) / 2;
+
+        INonfungiblePositionManager nfPosManager = INonfungiblePositionManager(
+            addressRegistry.getAddress("NFPositionManager")
+        );
 
         // swap 50% of GHO for WETH
         ISwapRouter swapRouter = ISwapRouter(addressRegistry.getUniswap());
-        TransferHelper.safeApprove(GHO, address(swapRouter), ghoAmount / 2);
+        IERC20(GHO).approve(address(swapRouter), lpGHOAmount);
 
         ISwapRouter.ExactInputSingleParams memory params = ISwapRouter
             .ExactInputSingleParams({
                 tokenIn: GHO,
                 tokenOut: WETH,
-                fee: poolFee, // assuming there exists a USDC/WETH 0.3% pool
+                fee: poolFee, // assuming there exists a GHO/WETH 0.3% pool
                 recipient: address(this),
                 deadline: block.timestamp,
-                amountIn: lpGHOAmount, // 50% of GHO
+                amountIn: 1, // 50% of GHO
                 amountOutMinimum: 0, // todo set in prod
                 sqrtPriceLimitX96: 0 // todo set in prod
             });
 
         uint256 wethAmount = swapRouter.exactInputSingle(params);
 
-        IERC20(WETH).approve(address(nonfungiblePositionManager), wethAmount);
-        IERC20(GHO).approve(address(nonfungiblePositionManager), lpGHOAmount);
+        IERC20(WETH).approve(address(nfPosManager), wethAmount);
+        IERC20(GHO).approve(address(nfPosManager), lpGHOAmount);
 
         INonfungiblePositionManager.MintParams
-            memory params = INonfungiblePositionManager.MintParams({
+            memory mintParams = INonfungiblePositionManager.MintParams({
                 token0: GHO,
                 token1: WETH,
                 fee: poolFee,
@@ -242,18 +231,17 @@ contract CoffinVault is Ownable, ICoffinVault, IERC721Receiver {
                 deadline: block.timestamp
             });
 
-        (tokenId, liquidity, amount0, amount1) = nonfungiblePositionManager
-            .mint(params);
+        (, liquidity, amount0, amount1) = nfPosManager.mint(mintParams);
 
-        if (amount0 < amount0ToAdd) {
-            dai.approve(address(nonfungiblePositionManager), 0);
-            uint refund0 = amount0ToAdd - amount0;
-            dai.transfer(msg.sender, refund0);
+        // nfPosManager.mint(mintParams);
+
+        if (amount0 < lpGHOAmount) {
+            IERC20(GHO).approve(address(nfPosManager), 0);
+            IERC20(GHO).transfer(msg.sender, lpGHOAmount - amount0);
         }
-        if (amount1 < amount1ToAdd) {
-            weth.approve(address(nonfungiblePositionManager), 0);
-            uint refund1 = amount1ToAdd - amount1;
-            weth.transfer(msg.sender, refund1);
+        if (amount1 < wethAmount) {
+            IWETH(WETH).approve(address(nfPosManager), 0);
+            IWETH(WETH).transfer(msg.sender, wethAmount - amount1);
         }
     }
 
