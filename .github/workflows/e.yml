@@ -18,7 +18,7 @@ jobs:
     steps:
       - name: Send message to Discord
         env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}     # add this secret
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_HOOK }}     # add this secret
           PR_URL:          ${{ github.event.pull_request.html_url }}
           PR_TITLE:        ${{ github.event.pull_request.title }}
           PR_NUMBER:       ${{ github.event.pull_request.number }}
