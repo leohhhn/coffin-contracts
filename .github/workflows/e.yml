@@ -6,7 +6,7 @@ on:
   # is merged into `master`
   pull_request:
     types: [closed]          # only when the PR is closed
-    branches: [newbranch]       # …and its base branch is master
+    branches: [main]       # …and its base branch is master
     paths:
       - 'examples/**'        # …and at least one file in examples/ changed
 
