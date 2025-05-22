@@ -1,10 +1,11 @@
 name: Notify Discord about examples updates
 
 on:
-  push:
-    branches: [main]       # …and its base branch is master
+  pull_request:
+    types: [closed]
+    branches: [main]
     paths:
-      - 'examples/**'        # …and at least one file in examples/ changed
+      - 'examples/**'
 
 jobs:
   discord-notify:
