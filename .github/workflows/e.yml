@@ -20,17 +20,16 @@ jobs:
           PR_NUMBER:       ${{ github.event.pull_request.number }}
           PR_AUTHOR:       ${{ github.event.pull_request.user.login }}
         run: |
-          # Compose a simple JSON payload (you can style it further)
-          payload=$(jq -nc \
-            --arg content "🔔 Fresh Gno code just dropped! 
+               payload=$(jq -nc \
+               --arg content "🔔 Fresh Gno code just dropped! Check it out below:
           
           #$PR_NUMBER – *$PR_TITLE*
           
           PR link: $PR_URL
           
-          by **$PR_AUTHOR** \
-            '{content: $content}')
-          curl -X POST \
+          by **@$PR_AUTHOR**" \
+               '{content: $content}')
+               curl -X POST \
                -H "Content-Type: application/json" \
                -d "$payload" \
                "$DISCORD_WEBHOOK"
