@@ -2,35 +2,33 @@
 name: Notify Discord about examples updates
 
 on:
-  # Fire **only** when a PR that touches the `examples/` tree
-  # is merged into `master`
-  pull_request:
-    types: [closed]          # only when the PR is closed
-    branches: [main]       # …and its base branch is master
+  push:
+    branches: [main]
     paths:
-      - 'examples/**'        # …and at least one file in examples/ changed
-
+      - 'examples/**'
 jobs:
   discord-notify:
-    if: github.event.pull_request.merged == true   # skip if PR was just closed
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
 
     steps:
       - name: Send message to Discord
         env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_HOOK }}     # add this secret
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_HOOK }}
           PR_URL:          ${{ github.event.pull_request.html_url }}
           PR_TITLE:        ${{ github.event.pull_request.title }}
           PR_NUMBER:       ${{ github.event.pull_request.number }}
           PR_AUTHOR:       ${{ github.event.pull_request.user.login }}
         run: |
-          # Compose the message
-          CONTENT=$'🔔 **Fresh Gno code just dropped!**\n\n'"\
-          **$PR_TITLE** (#$PR_NUMBER) by <https://github.com/$PR_AUTHOR>\n\
-          <$PR_URL>\n\n\
-          📂 **examples/** folder on master:\nhttps://github.com/$REPO/tree/master/examples"
-
+          CONTENT=$(jq -n \
+            --arg content "🔔 **Fresh Gno code just dropped!**
+          
+          **$PR_TITLE** (#$PR_NUMBER) by <https://github.com/$PR_AUTHOR>
+          <$PR_URL>" \
+          '{content: $content}'
+          )
+          
           curl -X POST \
-               -H "Content-Type: application/json" \
-               -d "$payload" \
-               "$DISCORD_WEBHOOK"
+         -H "Content-Type: application/json" \
+          -d "$CONTENT" \
+          "$DISCORD_WEBHOOK"
