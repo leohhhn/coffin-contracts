@@ -24,8 +24,10 @@ jobs:
           payload=$(jq -nc \
             --arg content "🔔 Fresh Gno code just dropped! 
           
-          #$PR_NUMBER – *$PR_TITLE* \
-          PR link: $PR_URL" \
+          #$PR_NUMBER – *$PR_TITLE*
+          
+          PR link: $PR_URL
+          
           by **$PR_AUTHOR** \
             '{content: $content}')
           curl -X POST \
