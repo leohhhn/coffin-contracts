@@ -29,7 +29,6 @@ jobs:
   $PR_URL
   EOF
   )
-  
   curl -X POST \
 -H "Content-Type: application/json" \
   -d "$CONTENT" \
