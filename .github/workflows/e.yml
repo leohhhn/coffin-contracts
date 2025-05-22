@@ -1,9 +1,6 @@
-# .github/workflows/discord-examples.yml
 name: Notify Discord about examples updates
 
 on:
-  # Fire **only** when a PR that touches the `examples/` tree
-  # is merged into `master`
   push:
     branches: [main]       # …and its base branch is master
     paths:
@@ -25,7 +22,7 @@ jobs:
           # Compose a simple JSON payload (you can style it further)
           payload=$(jq -nc \
             --arg content "🔔 Fresh Gno code just dropped! 
-          #$PR_NUMBER – *$PR_TITLE* by <https://github.com/$PR_AUTHOR> 
+          #$PR_NUMBER – *$PR_TITLE* by **$PR_AUTHOR** (https://github.com/$PR_AUTHOR) 
           $PR_URL" \
             '{content: $content}')
           curl -X POST \
